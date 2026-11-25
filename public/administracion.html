@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Permisos y Fichas - Colegio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .calendar-day { min-height: 110px; }
+    .tab-panel.hidden { display: none; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 hidden" id="bodyApp">
+  <div class="max-w-7xl mx-auto p-4 md:p-8">
+    
+    <header class="bg-white rounded-3xl shadow-sm p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-3">
+            Gestión Administrativa
+            <span id="badgeRol" class="text-xs font-bold px-2 py-1 rounded bg-blue-100 text-blue-700 uppercase">Visor</span>
+        </h1>
+        <p class="text-slate-500 mt-1">Tope diario: 3 cupos | Tope anual: 6 días</p>
+      </div>
+      <div class="flex gap-4 items-center">
+        <div class="text-center bg-slate-100 px-4 py-2 rounded-2xl hidden md:block">
+          <p class="text-xs text-slate-500 uppercase font-bold">Funcionarios</p>
+          <p id="kpiFuncionarios" class="text-xl font-bold">0</p>
+        </div>
+        <div class="text-center bg-slate-100 px-4 py-2 rounded-2xl hidden md:block">
+          <p class="text-xs text-slate-500 uppercase font-bold">Total Permisos</p>
+          <p id="kpiPermisos" class="text-xl font-bold">0</p>
+        </div>
+        <div class="text-center bg-blue-50 border border-blue-100 px-4 py-2 rounded-2xl">
+          <p class="text-xs text-blue-600 uppercase font-bold">Permisos Hoy</p>
+          <p id="kpiPermisosHoy" class="text-xl font-bold text-blue-700">0</p>
+        </div>
+        <button onclick="cerrarSesion()" class="ml-4 text-sm bg-rose-50 text-rose-600 font-bold hover:bg-rose-100 px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-2" title="Cerrar Sesión">
+            🚪 Salir
+        </button>
+      </div>
+    </header>
+
+    <nav class="flex flex-wrap gap-2 mb-8">
+      <button class="tab-btn px-6 py-3 rounded-2xl bg-slate-900 text-white font-medium transition" data-tab="tabFuncionarios">Funcionarios</button>
+      <button class="tab-btn px-6 py-3 rounded-2xl bg-white shadow-sm font-medium hover:bg-slate-100 transition" data-tab="tabFicha">Ficha Funcionario</button>
+      <button class="tab-btn px-6 py-3 rounded-2xl bg-white shadow-sm font-medium hover:bg-slate-100 transition editor-only hidden" data-tab="tabRegistro">Asignar Permiso</button>
+      <button class="tab-btn px-6 py-3 rounded-2xl bg-white shadow-sm font-medium hover:bg-slate-100 transition" data-tab="tabConsulta">Historial</button>
+      <button class="tab-btn px-6 py-3 rounded-2xl bg-white shadow-sm font-medium hover:bg-slate-100 transition" data-tab="tabCalendario">Calendario / Planner</button>
+      <button class="tab-btn px-6 py-3 rounded-2xl bg-white shadow-sm font-medium hover:bg-slate-100 transition superadmin-only hidden" data-tab="tabUsuarios">Gestión de Usuarios 🔑</button>
+    </nav>
+
+    <section id="tabFuncionarios" class="tab-panel">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div id="panelAdministrador" class="hidden space-y-6">
+          <div class="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-emerald-500">
+            <h2 class="text-xl font-bold mb-4 text-emerald-600">Nuevo Funcionario</h2>
+            <form id="formFuncionario" class="space-y-4">
+              <input id="nombreFuncionario" type="text" placeholder="Nombre completo" class="w-full border p-3 rounded-xl focus:ring-2 ring-slate-200 outline-none" required />
+              <input id="rutFuncionario" type="text" placeholder="RUT / DNI (Ej: 12345678-9)" class="w-full border p-3 rounded-xl focus:ring-2 ring-slate-200 outline-none" required />
+              <input id="cargoFuncionario" type="text" placeholder="Cargo (Ej: Docente)" class="w-full border p-3 rounded-xl focus:ring-2 ring-slate-200 outline-none" required />
+              
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-xs font-bold text-slate-500 ml-1">Fecha Nacimiento</label>
+                  <input id="nacimientoFuncionario" type="date" class="w-full border p-3 rounded-xl focus:ring-2 ring-slate-200 outline-none" required />
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-slate-500 ml-1">Horas Contrato</label>
+                  <input id="horasFuncionario" type="number" placeholder="Ej: 44" class="w-full border p-3 rounded-xl focus:ring-2 ring-slate-200 outline-none" required />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-xs font-bold text-slate-500 ml-1">Lactancia</label>
+                  <select id="lactanciaFuncionario" class="w-full border p-3 rounded-xl outline-none">
+                    <option value="0">No</option>
+                    <option value="1">Sí</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-slate-500 ml-1">Periodo</label>
+                  <select id="periodoFuncionario" class="w-full border p-3 rounded-xl outline-none">
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                  </select>
+                </div>
+              </div>
+              
+              <details class="text-sm bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <summary class="font-bold text-slate-600 cursor-pointer outline-none">Completar Datos de Contacto (Opcional)</summary>
+                <div class="mt-3 space-y-3">
+                    <input id="estadoCivilFuncionario" type="text" placeholder="Estado civil" class="w-full border p-2 rounded-lg" />
+                    <input id="direccionFuncionario" type="text" placeholder="Dirección" class="w-full border p-2 rounded-lg" />
+                    <input id="comunaFuncionario" type="text" placeholder="Comuna" class="w-full border p-2 rounded-lg" />
+                    <input id="telefonoFuncionario" type="text" placeholder="Teléfono personal" class="w-full border p-2 rounded-lg" />
+                    <input id="correoFuncionario" type="email" placeholder="Correo personal" class="w-full border p-2 rounded-lg" />
+                    <hr class="border-slate-200">
+                    <p class="font-bold text-slate-600 text-xs">Contacto de Emergencia</p>
+                    <input id="emNombreFuncionario" type="text" placeholder="Nombre contacto de emergencia" class="w-full border p-2 rounded-lg" />
+                    <input id="emParentescoFuncionario" type="text" placeholder="Parentesco" class="w-full border p-2 rounded-lg" />
+                    <input id="emTelefonoFuncionario" type="text" placeholder="Número de emergencia" class="w-full border p-2 rounded-lg" />
+                </div>
+              </details>
+
+              <button type="submit" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition">Registrar Manual</button>
+            </form>
+          </div>
+
+          <div class="bg-white p-6 rounded-3xl shadow-sm border-2 border-dashed border-rose-300 bg-rose-50/30 superadmin-only hidden">
+            <h2 class="text-lg font-bold mb-2">Importación Masiva</h2>
+            <p class="text-xs text-slate-500 mb-4">Asegúrate de incluir las nuevas columnas de contacto y emergencia.</p>
+            <form id="formExcel" class="space-y-4">
+              <input type="file" id="archivoExcel" accept=".xlsx, .xls" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-white file:text-slate-700 hover:file:bg-slate-100 cursor-pointer outline-none" required />
+              <button type="submit" id="btnSubirExcel" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 transition">Subir y Procesar Excel</button>
+            </form>
+          </div>
+        </div>
+        
+        <div id="contenedorNomina" class="lg:col-span-3 bg-white p-6 rounded-3xl shadow-sm overflow-hidden flex flex-col">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+            <h2 class="text-xl font-bold">Nómina</h2>
+            <input type="text" id="buscadorNomina" placeholder="Buscar por nombre o RUT..." class="w-full md:w-64 border p-2.5 rounded-xl focus:ring-2 ring-blue-500 outline-none text-sm bg-slate-50" oninput="filtrarNomina()" />
+          </div>
+          <div class="overflow-x-auto flex-1 custom-scrollbar">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="text-slate-400 border-b">
+                    <th class="pb-3">Nombre</th>
+                    <th class="pb-3">RUT</th>
+                    <th class="pb-3 text-right editor-only hidden">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tablaFuncionarios"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tabFicha" class="tab-panel hidden">
+      <div class="mb-6 bg-white p-6 rounded-3xl shadow-sm flex flex-col md:flex-row gap-4 items-center">
+        <label class="font-bold text-slate-700">Seleccionar Funcionario:</label>
+        <select id="selectFicha" class="flex-1 border p-3 rounded-xl outline-none bg-slate-50">
+          <option value="">-- Elige un funcionario --</option>
+        </select>
+      </div>
+
+      <div id="contenedorFicha" class="hidden grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-slate-900">
+            
+            <div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
+                <h2 class="text-xl font-bold" id="fichaNombre">Nombre</h2>
+                <button onclick="abrirModalEdicion()" class="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-200 transition shadow-sm flex items-center gap-1 editor-only hidden">
+                    ✏️ Editar Datos
+                </button>
+            </div>
+
+            <div class="space-y-3 text-sm">
+              <p><span class="text-slate-500 font-bold">RUT:</span> <span id="fichaRut"></span></p>
+              <p><span class="text-slate-500 font-bold">Cargo:</span> <span id="fichaCargo"></span></p>
+              <p><span class="text-slate-500 font-bold">Edad:</span> <span id="fichaEdad"></span> años</p>
+              <p><span class="text-slate-500 font-bold">Derecho Lactancia:</span> <span id="fichaLactancia" class="px-2 py-1 rounded-md font-bold text-xs"></span></p>
+              <p><span class="text-slate-500 font-bold">Periodo:</span> <span id="fichaPeriodo"></span></p>
+            </div>
+            
+            <div class="mt-6">
+                <button onclick="document.getElementById('infoAdicional').classList.toggle('hidden')" class="w-full bg-slate-100 text-slate-700 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition text-sm">
+                    Ver Información de Contacto ⬇️
+                </button>
+                <div id="infoAdicional" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm space-y-2 mt-3 shadow-inner">
+                    <p><span class="text-slate-500 font-bold">Estado Civil:</span> <span id="fichaEstadoCivil"></span></p>
+                    <p><span class="text-slate-500 font-bold">Dirección:</span> <span id="fichaDireccion"></span>, <span id="fichaComuna"></span></p>
+                    <p><span class="text-slate-500 font-bold">Teléfono:</span> <span id="fichaTelefono"></span></p>
+                    <p><span class="text-slate-500 font-bold">Correo:</span> <span id="fichaCorreo"></span></p>
+                    <div class="border-t border-slate-200 my-2 pt-2">
+                        <p class="font-bold text-slate-700 mb-1">Contacto de Emergencia</p>
+                        <p><span class="text-slate-500 font-bold">Nombre:</span> <span id="fichaEmergenciaNombre"></span></p>
+                        <p><span class="text-slate-500 font-bold">Parentesco:</span> <span id="fichaEmergenciaParentesco"></span></p>
+                        <p><span class="text-slate-500 font-bold">Teléfono:</span> <span id="fichaEmergenciaTelefono"></span></p>
+                    </div>
+                </div>
+            </div>
+
+          </div>
+
+          <div class="bg-blue-50 border border-blue-100 p-6 rounded-3xl shadow-sm text-center">
+            <p class="text-blue-800 font-bold uppercase text-xs mb-2">Días Administrativos Restantes</p>
+            <p id="fichaSaldo" class="text-5xl font-black text-blue-600">0</p>
+            <p class="text-xs text-blue-500 mt-2">Tope anual: 6 días</p>
+          </div>
+        </div>
+
+        <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold">Horario Semanal</h2>
+            <p class="text-sm bg-slate-100 px-3 py-1 rounded-lg">Contrato: <span id="fichaHorasContrato" class="font-bold text-slate-900">0</span> hrs</p>
+          </div>
+          <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left mb-4">
+              <thead>
+                <tr class="text-slate-400 border-b text-sm">
+                  <th class="pb-3">Día</th>
+                  <th class="pb-3">Entrada</th>
+                  <th class="pb-3">Salida</th>
+                  <th class="pb-3 text-right">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="tablaHorarios"></tbody>
+              <tfoot>
+                <tr class="border-t-2 border-slate-200">
+                  <td colspan="3" class="pt-4 text-right font-bold text-slate-500">TOTAL HORAS CALCULADAS:</td>
+                  <td class="pt-4 text-right font-black text-xl" id="totalHorasCalculadas">0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div id="alertaHoras" class="text-sm font-bold text-center p-3 rounded-xl mb-4 hidden"></div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button onclick="guardarHorario()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition editor-only hidden">Guardar Horario</button>
+            <button id="btnPrintFicha" onclick="imprimirFicha()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-md md:col-span-2">🖨️ Imprimir Ficha y Horario</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tabRegistro" class="tab-panel hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm">
+          <h2 class="text-xl font-bold mb-6">Solicitud de Permiso</h2>
+          <form id="formPermiso" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div class="md:col-span-2 relative">
+              <label class="text-sm font-bold text-slate-500 mb-1 block">Funcionario</label>
+              <input type="text" id="buscadorPermisoInput" placeholder="🔍 Escribe nombre o RUT para seleccionar..." class="w-full border p-3 rounded-xl outline-none focus:ring-2 ring-blue-500 text-sm bg-slate-50 transition" autocomplete="off" />
+              <input type="hidden" id="permisoFuncionarioVal" />
+              <ul id="listaResultadosPermiso" class="absolute z-10 w-full bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto hidden custom-scrollbar"></ul>
+            </div>
+
+            <div>
+              <label class="text-sm font-bold text-slate-500 mb-1 block">Fecha del Permiso</label>
+              <input id="fechaPermiso" type="date" class="w-full border p-3 rounded-xl" required />
+            </div>
+            <div>
+              <label class="text-sm font-bold text-slate-500 mb-1 block">Tipo de Jornada</label>
+              <select id="tipoPermiso" class="w-full border p-3 rounded-xl">
+                <option value="1">Día Completo</option>
+                <option value="0.5">Medio Día</option>
+              </select>
+            </div>
+            <div>
+                <label class="text-sm font-bold text-slate-500 mb-1 block">Bloque</label>
+                <select id="jornadaPermiso" class="w-full border p-3 rounded-xl">
+                  <option value="Completa">Todo el día</option>
+                  <option value="AM">Mañana (AM)</option>
+                  <option value="PM">Tarde (PM)</option>
+                </select>
+            </div>
+            <div>
+              <label class="text-sm font-bold text-slate-500 mb-1 block">Fecha de Solicitud (Papel)</label>
+              <input id="fechaSolicitud" type="date" class="w-full border p-3 rounded-xl" required />
+            </div>
+            <textarea id="observacionPermiso" placeholder="Observaciones..." class="md:col-span-2 border p-3 rounded-xl h-24"></textarea>
+            <button type="submit" class="md:col-span-2 bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition shadow-md">Confirmar Registro</button>
+          </form>
+        </div>
+        
+        <div id="infoSaldo" class="bg-slate-800 text-white p-8 rounded-3xl shadow-xl flex flex-col justify-start text-center h-full">
+            <p class="text-slate-400 uppercase text-xs font-bold mb-2 mt-4">Resumen de Saldo</p>
+            <div id="saldoDinamico"><p class="text-sm">Seleccione un funcionario.</p></div>
+            <div id="historialFechasPermiso" class="mt-8 text-sm text-slate-300 hidden text-left bg-slate-900/50 p-4 rounded-2xl w-full border border-slate-700">
+                <p class="font-bold border-b border-slate-700 pb-2 mb-3 text-center text-white text-xs uppercase">Fechas y Motivos</p>
+                <ul id="listaFechasPermiso" class="space-y-4 max-h-48 overflow-y-auto pr-2 custom-scrollbar"></ul>
+            </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="tabConsulta" class="tab-panel hidden">
+      <div class="bg-white p-6 rounded-3xl shadow-sm">
+        <h2 class="text-xl font-bold mb-4">Historial General</h2>
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full">
+            <thead class="bg-slate-50">
+                <tr class="text-left">
+                    <th class="p-4 rounded-l-xl">Funcionario</th>
+                    <th class="p-4">Fecha Permiso</th>
+                    <th class="p-4">Tipo</th>
+                    <th class="p-4 text-right rounded-r-xl editor-only hidden">Acción</th>
+                </tr>
+            </thead>
+            <tbody id="tablaPermisos"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tabCalendario" class="tab-panel hidden">
+      <div class="bg-white p-6 rounded-3xl shadow-sm">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <h2 id="tituloCalendario" class="text-2xl font-black text-slate-900 uppercase tracking-tighter">Mes Año</h2>
+          <div class="flex gap-2">
+            <button onclick="cambiarMes(-1)" class="p-3 bg-slate-100 rounded-xl hover:bg-slate-200 transition font-medium">◀ Anterior</button>
+            <button onclick="cambiarMes(1)" class="p-3 bg-slate-100 rounded-xl hover:bg-slate-200 transition font-medium">Siguiente ▶</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-xl overflow-hidden" id="plannerContenedor">
+        </div>
+      </div>
+    </section>
+
+    <section id="tabUsuarios" class="tab-panel hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="bg-white p-6 rounded-3xl shadow-sm border-t-4 border-slate-900 h-fit">
+          <h2 class="text-xl font-bold mb-4">Registrar Nuevo Acceso</h2>
+          <form id="formUsuario" class="space-y-4">
+            <div>
+              <label class="text-sm font-bold text-slate-500 ml-1">Nombre de Usuario</label>
+              <input type="text" id="nuevoUsuarioUser" placeholder="Ej: rrhh_ana" class="w-full border p-3 rounded-xl focus:ring-2 ring-blue-500 outline-none bg-slate-50" required autocomplete="off" />
+            </div>
+            <div>
+              <label class="text-sm font-bold text-slate-500 ml-1">Contraseña</label>
+              <input type="password" id="nuevoUsuarioPass" placeholder="Mínimo 6 caracteres" class="w-full border p-3 rounded-xl focus:ring-2 ring-blue-500 outline-none bg-slate-50" required autocomplete="new-password" />
+            </div>
+            <div>
+              <label class="text-sm font-bold text-slate-500 ml-1">Rol en el sistema</label>
+              <select id="nuevoUsuarioRol" class="w-full border p-3 rounded-xl focus:ring-2 ring-blue-500 outline-none bg-slate-50">
+                <option value="visor">Visor</option>
+                <option value="editor">Administración</option>
+                <option value="admin">SuperAdmin</option>
+              </select>
+            </div>
+            <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-md mt-2">Crear Credencial</button>
+          </form>
+        </div>
+        <div class="bg-white p-6 rounded-3xl shadow-sm lg:col-span-2">
+          <h2 class="text-xl font-bold mb-4">Credenciales Activas</h2>
+          <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left">
+              <thead class="bg-slate-50">
+                <tr class="text-sm text-slate-500">
+                  <th class="p-4 rounded-l-xl font-bold">Usuario</th>
+                  <th class="p-4 font-bold">Rol Privilegio</th>
+                  <th class="p-4 text-right rounded-r-xl font-bold">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tablaUsuariosLista"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div id="modalEdicion" class="fixed inset-0 bg-slate-900/60 hidden justify-center items-center z-50 p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <h3 class="text-xl font-bold text-slate-800">Editar Funcionario</h3>
+        <button onclick="cerrarModalEdicion()" class="text-slate-400 hover:text-rose-500 font-bold text-2xl transition">&times;</button>
+      </div>
+      <div class="p-6 overflow-y-auto custom-scrollbar">
+        <form id="formEdicionFuncionario" class="space-y-4">
+          <input type="hidden" id="editRut" />
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><label class="text-xs font-bold text-slate-500 ml-1">Nombre</label><input id="editNombre" type="text" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500 bg-slate-50" required /></div>
+              <div><label class="text-xs font-bold text-slate-500 ml-1">Cargo</label><input id="editCargo" type="text" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500 bg-slate-50" required /></div>
+              <div><label class="text-xs font-bold text-slate-500 ml-1">Fecha Nacimiento</label><input id="editNacimiento" type="date" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500 bg-slate-50" required /></div>
+              <div><label class="text-xs font-bold text-slate-500 ml-1">Horas Contrato</label><input id="editHoras" type="number" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500 bg-slate-50" required /></div>
+              <div><label class="text-xs font-bold text-slate-500 ml-1">Lactancia</label><select id="editLactancia" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500 bg-slate-50"><option value="0">No</option><option value="1">Sí</option></select></div>
+              <div><label class="text-xs font-bold text-slate-500 ml-1">Periodo</label><select id="editPeriodo" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500 bg-slate-50"><option value="2025">2025</option><option value="2026">2026</option></select></div>
+          </div>
+          <hr class="border-slate-200 my-4">
+          <h4 class="font-bold text-slate-700 text-sm mb-2">Información de Contacto</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input id="editEstadoCivil" type="text" placeholder="Estado Civil" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500" />
+              <input id="editTelefono" type="text" placeholder="Teléfono" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500" />
+              <input id="editCorreo" type="email" placeholder="Correo electrónico" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500" />
+              <input id="editComuna" type="text" placeholder="Comuna" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500" />
+              <input id="editDireccion" type="text" placeholder="Dirección completa" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500 md:col-span-2" />
+          </div>
+          <hr class="border-slate-200 my-4">
+          <h4 class="font-bold text-slate-700 text-sm mb-2">Contacto de Emergencia</h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <input id="editEmNombre" type="text" placeholder="Nombre" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500" />
+              <input id="editEmParentesco" type="text" placeholder="Parentesco" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500" />
+              <input id="editEmTelefono" type="text" placeholder="Teléfono" class="w-full border p-2.5 rounded-xl outline-none focus:ring-2 ring-blue-500" />
+          </div>
+          <div class="pt-6 flex justify-end gap-3 mt-4 border-t border-slate-100">
+              <button type="button" onclick="cerrarModalEdicion()" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Cancelar</button>
+              <button type="submit" class="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition shadow-md">💾 Guardar Cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalUI" class="fixed inset-0 bg-slate-900/40 hidden justify-center items-center z-[100] p-4 backdrop-blur-sm transition-opacity duration-200 opacity-0">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-200" id="modalUIBox">
+      <div class="p-6 text-center">
+        
+        <div id="modalUIIcon" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-50 mb-4 text-3xl shadow-inner">
+          </div>
+        
+        <h3 class="text-xl font-black text-slate-800 mb-2" id="modalUITitle">Título</h3>
+        <p class="text-slate-500 text-sm mb-6 leading-relaxed" id="modalUIMessage">Mensaje</p>
+        
+        <div class="flex gap-3 justify-center" id="modalUIBotones">
+          <button id="btnModalCancel" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition hidden w-full">Cancelar</button>
+          <button id="btnModalConfirm" class="px-5 py-2.5 rounded-xl font-bold text-white transition shadow-md w-full">Aceptar</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <script>
+    // --- VERIFICACIÓN DE SESIÓN Y ROLES --- ...
+    // Ya no buscamos el token, solo el rol para saber qué interfaz mostrar
+    const appRol = localStorage.getItem("rol");
+
+    if (!appRol) {
+        window.location.href = "/login";
+    } else {
+        document.getElementById("bodyApp").classList.remove("hidden");
+    }
+
+    let funcionarios = [];
+    let permisos = [];
+    let fechaActual = new Date();
+    let funcionarioActivoFicha = null;
+    
+    let esSuperAdmin = (appRol === 'admin'); 
+    let puedeEditar = (appRol === 'admin' || appRol === 'editor'); 
+
+    const diasSemana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+
+    // Eliminamos el Authorization Header porque las cookies seguras viajan solas
+    const headersAuthJSON = {
+        "Content-Type": "application/json"
+    };
+
+    async function cerrarSesion() {
+        // Le avisamos al servidor que destruya la cookie segura
+        try {
+            await fetch("/api/auth/logout", { method: "POST" });
+        } catch(e) {}
+        
+        localStorage.removeItem("rol");
+        window.location.href = "/login";
+    }
+
+
+    // --- LÓGICA DEL MODAL VISUAL MEJORADA ---
+    const modalUI = document.getElementById("modalUI");
+    const modalUIBox = document.getElementById("modalUIBox");
+    
+    function abrirModal(opciones) {
+        document.getElementById("modalUIIcon").innerHTML = opciones.icono || 'ℹ️';
+        document.getElementById("modalUITitle").innerText = opciones.titulo || 'Atención';
+        
+        // Mejoramos el formato del mensaje para que respete los saltos de línea (\n)
+        const mensajeEl = document.getElementById("modalUIMessage");
+        mensajeEl.innerHTML = (opciones.mensaje || '').replace(/\n/g, '<br>');
+        
+        const btnConfirm = document.getElementById("btnModalConfirm");
+        const btnCancel = document.getElementById("btnModalCancel");
+        
+        // Limpiamos listeners clonando los botones (Práctica segura)
+        const nuevoBtnConfirm = btnConfirm.cloneNode(true);
+        btnConfirm.parentNode.replaceChild(nuevoBtnConfirm, btnConfirm);
+        const nuevoBtnCancel = btnCancel.cloneNode(true);
+        btnCancel.parentNode.replaceChild(nuevoBtnCancel, btnCancel);
+
+        // Estado: CARGANDO
+        if (opciones.tipo === 'carga') {
+            nuevoBtnConfirm.classList.add('hidden');
+            nuevoBtnCancel.classList.add('hidden');
+            document.getElementById("modalUIIcon").innerHTML = '<span class="animate-spin text-4xl inline-block">⏳</span>';
+        } 
+        // Estado: PREGUNTA (2 botones)
+        else if (opciones.tipo === 'pregunta') {
+            nuevoBtnCancel.classList.remove('hidden');
+            nuevoBtnConfirm.classList.remove('hidden');
+            nuevoBtnConfirm.className = "px-5 py-2.5 rounded-xl font-bold text-white transition shadow-md w-full " + (opciones.color || "bg-amber-500 hover:bg-amber-600");
+            nuevoBtnConfirm.innerText = opciones.textoConfirmar || "Confirmar";
+            
+            nuevoBtnCancel.onclick = () => { cerrarModal(); if(opciones.onCancel) opciones.onCancel(); };
+            nuevoBtnConfirm.onclick = () => { cerrarModal(); if(opciones.onConfirm) opciones.onConfirm(); };
+        } 
+        // Estado: ALERTA SIMPLE (1 botón)
+        else {
+            nuevoBtnCancel.classList.add('hidden');
+            nuevoBtnConfirm.classList.remove('hidden');
+            nuevoBtnConfirm.className = "px-5 py-2.5 rounded-xl font-bold text-white transition shadow-md w-full " + (opciones.color || "bg-blue-600 hover:bg-blue-700");
+            nuevoBtnConfirm.innerText = "Entendido";
+            nuevoBtnConfirm.onclick = () => { cerrarModal(); if(opciones.onConfirm) opciones.onConfirm(); };
+        }
+
+        // Animación de entrada fluida
+        modalUI.classList.remove("hidden"); 
+        modalUI.classList.add("flex");
+        requestAnimationFrame(() => {
+            modalUI.classList.remove("opacity-0"); 
+            modalUIBox.classList.remove("scale-95");
+        });
+    }
+
+    function cerrarModal() {
+        modalUI.classList.add("opacity-0"); 
+        modalUIBox.classList.add("scale-95");
+        setTimeout(() => { 
+            modalUI.classList.add("hidden"); 
+            modalUI.classList.remove("flex"); 
+        }, 200);
+    }
+
+    // --------------------------------------------------
+
+    function inicializarUI() {
+        const badge = document.getElementById("badgeRol");
+        
+        if (esSuperAdmin) {
+            badge.innerText = "Super Administrador";
+            badge.className = "text-xs font-bold px-2 py-1 rounded bg-rose-100 text-rose-700 uppercase";
+            document.querySelectorAll('.superadmin-only').forEach(el => el.classList.remove('hidden'));
+            cargarUsuarios();
+        } else if (appRol === 'editor') {
+            badge.innerText = "Administrador RRHH";
+            badge.className = "text-xs font-bold px-2 py-1 rounded bg-amber-100 text-amber-700 uppercase";
+        } else {
+            badge.innerText = "Visor";
+            badge.className = "text-xs font-bold px-2 py-1 rounded bg-blue-100 text-blue-700 uppercase";
+        }
+
+        if (puedeEditar) {
+            document.getElementById("panelAdministrador").classList.remove("hidden");
+            document.getElementById("contenedorNomina").classList.remove("lg:col-span-3");
+            document.getElementById("contenedorNomina").classList.add("lg:col-span-2");
+            
+            const btnPrint = document.getElementById("btnPrintFicha");
+            if (btnPrint) btnPrint.classList.remove("md:col-span-2");
+
+            document.querySelectorAll('.editor-only').forEach(el => el.classList.remove('hidden'));
+        }
+    }
+
+    inicializarUI();
+
+    function generarID() {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+        return Date.now().toString(36) + Math.random().toString(36).substring(2);
+    }
+
+    function checkAuthError(res) {
+        if (res.status === 401 || res.status === 403) {
+            abrirModal({
+                icono: '🔐', 
+                titulo: 'Sesión Expirada', 
+                mensaje: 'Tu sesión ha expirado o no tienes permisos suficientes.', 
+                color: 'bg-rose-500 hover:bg-rose-600',
+                onConfirm: () => cerrarSesion()
+            });
+            throw new Error("No autorizado");
+        }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('bg-slate-900', 'text-white');
+            b.classList.add('bg-white');
+        });
+        
+        document.getElementById(btn.dataset.tab).classList.remove('hidden');
+        btn.classList.remove('bg-white');
+        btn.classList.add('bg-slate-900', 'text-white');
+        
+        if(btn.dataset.tab === 'tabCalendario') renderCalendario();
+      });
+    });
+
+    async function cargarDatos() {
+      try {
+        // Quitamos el header de Authorization
+        const resF = await fetch("/api/funcionarios");
+        checkAuthError(resF); // Verificamos si el servidor nos pateó
+        funcionarios = await resF.json();
+        
+        const resP = await fetch("/api/permisos");
+        checkAuthError(resP);
+        permisos = await resP.json();
+        
+        actualizarInterfaz();
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+      }
+    }
+
+    function renderTablaNomina(lista) {
+        const tbody = document.getElementById("tablaFuncionarios");
+        if (lista.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${puedeEditar ? 3 : 2}" class="py-4 text-center text-slate-500">No se encontraron funcionarios</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = lista.map(f => `
+            <tr class="border-b last:border-0 hover:bg-slate-50 transition">
+            <td class="py-4 font-bold text-slate-800 cursor-pointer hover:text-blue-600 hover:underline" onclick="verFicha('${f.id}')" title="Ver ficha del funcionario">
+                ${f.nombre}
+            </td>
+            <td class="py-4 text-slate-500">${f.rut}</td>
+            <td class="py-4 text-right editor-only ${puedeEditar ? '' : 'hidden'}">
+                <button onclick="eliminarFuncionario('${f.id}')" class="text-rose-600 font-bold hover:underline">Eliminar</button>
+            </td>
+            </tr>
+        `).join("");
+    }
+
+    function filtrarNomina() {
+        const texto = document.getElementById("buscadorNomina").value.toLowerCase().trim();
+        const palabras = texto.split(" ").filter(p => p !== "");
+        const filtrados = funcionarios.filter(f => {
+            const nombreAFiltrar = f.nombre.toLowerCase();
+            const rutAFiltrar = f.rut.toLowerCase();
+            if (rutAFiltrar.includes(texto)) return true;
+            return palabras.every(palabra => nombreAFiltrar.includes(palabra));
+        });
+        renderTablaNomina(filtrados);
+    }
+
+    const inputBuscadorPermiso = document.getElementById("buscadorPermisoInput");
+    const listaResultadosPermiso = document.getElementById("listaResultadosPermiso");
+    const hiddenInputFuncionario = document.getElementById("permisoFuncionarioVal");
+
+    inputBuscadorPermiso.addEventListener("input", (e) => {
+        const texto = e.target.value.toLowerCase().trim();
+        listaResultadosPermiso.innerHTML = "";
+        hiddenInputFuncionario.value = ""; 
+        hiddenInputFuncionario.dispatchEvent(new Event('change')); 
+
+        if (texto === "") {
+            listaResultadosPermiso.classList.add("hidden"); return;
+        }
+
+        const palabras = texto.split(" ").filter(p => p !== "");
+        const filtrados = funcionarios.filter(f => {
+            const nombre = f.nombre.toLowerCase(); const rut = f.rut.toLowerCase();
+            if (rut.includes(texto)) return true;
+            return palabras.every(p => nombre.includes(p));
+        });
+
+        if (filtrados.length === 0) {
+            listaResultadosPermiso.innerHTML = `<li class="p-4 text-slate-500 text-sm italic text-center">No se encontraron funcionarios</li>`;
+        } else {
+            listaResultadosPermiso.innerHTML = filtrados.map(f => `
+                <li class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="seleccionarFuncionarioPermiso('${f.id}', '${f.nombre.replace(/'/g, "\\'")}')">
+                    <span class="font-bold text-slate-800 text-sm">${f.nombre}</span><br>
+                    <span class="text-xs text-slate-500">${f.rut}</span>
+                </li>
+            `).join("");
+        }
+        listaResultadosPermiso.classList.remove("hidden");
+    });
+
+    function seleccionarFuncionarioPermiso(id, nombre) {
+        inputBuscadorPermiso.value = nombre; hiddenInputFuncionario.value = id;
+        listaResultadosPermiso.classList.add("hidden"); hiddenInputFuncionario.dispatchEvent(new Event('change'));
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!inputBuscadorPermiso.contains(e.target) && !listaResultadosPermiso.contains(e.target)) {
+            listaResultadosPermiso.classList.add("hidden");
+        }
+    });
+
+    function actualizarInterfaz() {
+      document.getElementById("kpiFuncionarios").innerText = funcionarios.length;
+      document.getElementById("kpiPermisos").innerText = permisos.length;
+
+      const hoyObj = new Date();
+      const hoyStr = `${hoyObj.getFullYear()}-${String(hoyObj.getMonth() + 1).padStart(2, '0')}-${String(hoyObj.getDate()).padStart(2, '0')}`;
+      const permisosDeHoy = permisos.filter(p => p.fechaPermiso === hoyStr).length;
+      document.getElementById("kpiPermisosHoy").innerText = permisosDeHoy;
+
+      const options = '<option value="">-- Seleccionar Funcionario --</option>' + 
+        funcionarios.map(f => `<option value="${f.id}">${f.nombre}</option>`).join("");
+      const selectFicha = document.getElementById("selectFicha");
+      const valorAnteriorFicha = selectFicha.value;
+      selectFicha.innerHTML = options; selectFicha.value = valorAnteriorFicha;
+
+      filtrarNomina();
+
+      const tP = document.getElementById("tablaPermisos");
+      const permisosSeguros = [...permisos].sort((a, b) => (a.fechaPermiso < b.fechaPermiso ? 1 : -1));
+      tP.innerHTML = permisosSeguros.map(p => {
+        const f = funcionarios.find(x => x.id === p.funcionarioId);
+        return `
+          <tr class="border-b hover:bg-slate-50 transition">
+            <td class="p-4 font-medium text-slate-800">${f ? f.nombre : '<span class="text-rose-500">Eliminado</span>'}</td>
+            <td class="p-4 font-bold">${p.fechaPermiso}</td>
+            <td class="p-4 text-sm text-slate-600">${p.tipo == 1 ? 'Día Completo' : 'Medio día'}</td>
+            <td class="p-4 text-right editor-only ${puedeEditar ? '' : 'hidden'}">
+                <button onclick="eliminarPermiso('${p.id}')" class="bg-rose-50 text-rose-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-rose-100">Borrar</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      if (!document.getElementById("tabCalendario").classList.contains("hidden")) renderCalendario();
+    }
+
+    function verFicha(idFuncionario) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('bg-slate-900', 'text-white'); b.classList.add('bg-white'); });
+        document.getElementById('tabFicha').classList.remove('hidden');
+        const btnFicha = document.querySelector('.tab-btn[data-tab="tabFicha"]');
+        btnFicha.classList.remove('bg-white'); btnFicha.classList.add('bg-slate-900', 'text-white');
+        const selectFicha = document.getElementById("selectFicha");
+        selectFicha.value = idFuncionario; selectFicha.dispatchEvent(new Event('change'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function calcularEdad(fechaNacimiento) {
+        if(!fechaNacimiento) return "-";
+        const hoy = new Date(); const nacimiento = new Date(fechaNacimiento);
+        let edad = hoy.getFullYear() - nacimiento.getFullYear();
+        const mes = hoy.getMonth() - nacimiento.getMonth();
+        if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
+        return edad;
+    }
+
+    function calcularHorasDiarias(horaEntrada, horaSalida) {
+        if (!horaEntrada || !horaSalida) return 0;
+        const entrada = new Date(`1970-01-01T${horaEntrada}:00`); const salida = new Date(`1970-01-01T${horaSalida}:00`);
+        let diferencia = salida - entrada; let horas = diferencia / (1000 * 60 * 60);
+        return horas > 0 ? horas : 0; 
+    }
+
+    function recalcularTotalesFicha() {
+        if(!funcionarioActivoFicha) return;
+        let totalSemana = 0;
+        diasSemana.forEach(dia => {
+            const ent = document.getElementById(`in_${dia}_ent`).value; const sal = document.getElementById(`in_${dia}_sal`).value;
+            const horas = calcularHorasDiarias(ent, sal);
+            document.getElementById(`sub_${dia}`).innerText = horas.toFixed(1); totalSemana += horas;
+        });
+        document.getElementById("totalHorasCalculadas").innerText = totalSemana.toFixed(1);
+
+        const f = funcionarios.find(x => x.id === funcionarioActivoFicha);
+        const contrato = f.horasContratadas || 0;
+        const alerta = document.getElementById("alertaHoras");
+        alerta.classList.remove("hidden", "bg-emerald-100", "text-emerald-700", "bg-rose-100", "text-rose-700", "bg-amber-100", "text-amber-700");
+
+        if(totalSemana === contrato) {
+            alerta.classList.add("bg-emerald-100", "text-emerald-700"); alerta.innerText = "✓ Las horas calculadas coinciden con el contrato.";
+        } else if (totalSemana > contrato) {
+            alerta.classList.add("bg-rose-100", "text-rose-700"); alerta.innerText = `⚠ Exceso de horas: Está haciendo ${Math.abs(totalSemana - contrato).toFixed(1)} hrs de más.`;
+        } else {
+            alerta.classList.add("bg-amber-100", "text-amber-700"); alerta.innerText = `⚠ Faltan horas: Está haciendo ${Math.abs(contrato - totalSemana).toFixed(1)} hrs menos.`;
+        }
+    }
+
+    document.getElementById("selectFicha").addEventListener("change", (e) => {
+        funcionarioActivoFicha = e.target.value;
+        const cont = document.getElementById("contenedorFicha");
+        document.getElementById("infoAdicional").classList.add('hidden'); 
+
+        if(!funcionarioActivoFicha) { cont.classList.add("hidden"); cont.classList.remove("grid"); return; }
+
+        const f = funcionarios.find(x => x.id === funcionarioActivoFicha);
+        cont.classList.remove("hidden"); cont.classList.add("grid");
+
+        document.getElementById("fichaNombre").innerText = f.nombre; document.getElementById("fichaRut").innerText = f.rut;
+        document.getElementById("fichaCargo").innerText = f.cargo; document.getElementById("fichaEdad").innerText = calcularEdad(f.fechaNacimiento);
+        document.getElementById("fichaPeriodo").innerText = f.periodo; document.getElementById("fichaHorasContrato").innerText = f.horasContratadas;
+        
+        document.getElementById("fichaEstadoCivil").innerText = f.estadoCivil || "-";
+        document.getElementById("fichaDireccion").innerText = f.direccion || "-";
+        document.getElementById("fichaComuna").innerText = f.comuna || "-";
+        document.getElementById("fichaTelefono").innerText = f.telefono || "-";
+        document.getElementById("fichaCorreo").innerText = f.correo || "-";
+        document.getElementById("fichaEmergenciaNombre").innerText = f.emergenciaNombre || "-";
+        document.getElementById("fichaEmergenciaParentesco").innerText = f.emergenciaParentesco || "-";
+        document.getElementById("fichaEmergenciaTelefono").innerText = f.emergenciaTelefono || "-";
+
+        const badgeLactancia = document.getElementById("fichaLactancia");
+        if(f.lactancia === 1) { badgeLactancia.innerText = "SÍ"; badgeLactancia.className = "bg-purple-100 text-purple-700 px-2 py-1 rounded-md font-bold text-xs"; } 
+        else { badgeLactancia.innerText = "NO"; badgeLactancia.className = "bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-bold text-xs"; }
+
+        const anioActual = new Date().getFullYear();
+        const usados = permisos.filter(p => p.funcionarioId === f.id && p.fechaPermiso && p.fechaPermiso.startsWith(anioActual.toString())).reduce((acc, p) => acc + (Number(p.tipo) || 0), 0);
+        document.getElementById("fichaSaldo").innerText = 6 - usados;
+
+        let horarioObj = {}; try { horarioObj = JSON.parse(f.horario || "{}"); } catch(e){}
+        const tbodyHorario = document.getElementById("tablaHorarios");
+        
+        tbodyHorario.innerHTML = diasSemana.map(dia => {
+            const h = horarioObj[dia] || { entrada: "", salida: "" }; 
+            const nombreDia = dia.charAt(0).toUpperCase() + dia.slice(1);
+            
+            const disabledAttr = puedeEditar ? '' : 'disabled';
+            const bgClass = puedeEditar ? 'bg-white' : 'bg-slate-50 text-slate-400 cursor-not-allowed border-slate-100';
+
+            return `<tr class="border-b last:border-0 hover:bg-slate-50">
+                        <td class="py-2 font-medium capitalize text-slate-600">${nombreDia}</td>
+                        <td class="py-2"><input type="time" id="in_${dia}_ent" value="${h.entrada}" class="border p-2 rounded-lg ${bgClass} w-full outline-none" onchange="recalcularTotalesFicha()" ${disabledAttr}></td>
+                        <td class="py-2"><input type="time" id="in_${dia}_sal" value="${h.salida}" class="border p-2 rounded-lg ${bgClass} w-full outline-none" onchange="recalcularTotalesFicha()" ${disabledAttr}></td>
+                        <td class="py-2 text-right font-bold text-slate-700" id="sub_${dia}">0</td>
+                    </tr>`;
+        }).join("");
+        
+        recalcularTotalesFicha();
+    });
+
+    async function guardarHorario() {
+        if(!funcionarioActivoFicha) return;
+        
+        // Lanzamos el modal de carga
+        abrirModal({ tipo: 'carga', titulo: 'Guardando horario...' });
+
+        let nuevoHorario = {}; 
+        diasSemana.forEach(dia => { 
+            nuevoHorario[dia] = { 
+                entrada: document.getElementById(`in_${dia}_ent`).value, 
+                salida: document.getElementById(`in_${dia}_sal`).value 
+            }; 
+        });
+        
+        try {
+            // CORRECCIÓN: Se añade "/funcionarios" a la ruta
+            const res = await fetch(`/api/funcionarios/horarios/${funcionarioActivoFicha}`, { 
+                method: "PUT", 
+                headers: headersAuthJSON, 
+                body: JSON.stringify({ horario: nuevoHorario }) 
+            });
+            
+            checkAuthError(res);
+            const data = await res.json();
+
+            if(res.ok) { 
+                abrirModal({
+                    icono:'✅', 
+                    titulo:'Éxito', 
+                    mensaje:'Horario guardado correctamente.', 
+                    color:'bg-emerald-500 hover:bg-emerald-600'
+                });
+                cargarDatos(); 
+            } else { 
+                abrirModal({
+                    icono:'❌', 
+                    titulo:'Error', 
+                    mensaje: data.error || 'No se pudo guardar el horario.', 
+                    color:'bg-rose-500 hover:bg-rose-600'
+                });
+            }
+        } catch(e) {
+            if(e.message !== "No autorizado") {
+                abrirModal({
+                    icono:'🔌', 
+                    titulo:'Error de Red', 
+                    mensaje:'No se pudo conectar con el servidor.', 
+                    color:'bg-slate-800'
+                });
+            }
+        }
+    }
+
+    function imprimirFicha() {
+        if(!funcionarioActivoFicha) { 
+            abrirModal({icono:'🖨️', titulo:'Atención', mensaje:'Seleccione un funcionario primero.', color:'bg-amber-500 hover:bg-amber-600'});
+            return; 
+        }
+        const f = funcionarios.find(x => x.id === funcionarioActivoFicha);
+        let horarioObj = {}; try { horarioObj = JSON.parse(f.horario || "{}"); } catch(e){}
+        const edadText = calcularEdad(f.fechaNacimiento);
+        let filasHorario = ''; let totalHoras = 0;
+
+        diasSemana.forEach(dia => {
+            const h = horarioObj[dia] || { entrada: "", salida: "" };
+            const subtotal = calcularHorasDiarias(h.entrada, h.salida);
+            totalHoras += subtotal; const nombreDia = dia.charAt(0).toUpperCase() + dia.slice(1);
+            filasHorario += `<tr><td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${nombreDia}</td><td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${h.entrada || '-'}</td><td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${h.salida || '-'}</td><td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold;">${subtotal.toFixed(1)}</td></tr>`;
+        });
+
+        const ventanaPrint = window.open('', '', 'width=800,height=900');
+        ventanaPrint.document.write(`
+            <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Ficha Funcionario - ${f.nombre}</title><style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+            .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0f172a; padding-bottom: 15px; margin-bottom: 30px; }
+            .header h1 { margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; } .header p { margin: 0; font-size: 14px; color: #64748b; }
+            h2 { font-size: 18px; margin-top: 30px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; color: #334155; }
+            .grid-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 14px; }
+            .grid-info div { background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
+            .label { font-weight: bold; color: #64748b; font-size: 12px; text-transform: uppercase; display: block; margin-bottom: 2px; }
+            .value { font-size: 15px; margin-bottom: 12px; font-weight: 500; } .value:last-child { margin-bottom: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+            th { background-color: #f1f5f9; padding: 12px 10px; text-align: left; border-bottom: 2px solid #cbd5e1; color: #334155; }
+            tfoot td { padding: 15px 10px; font-weight: bold; background-color: #f8fafc; border-top: 2px solid #cbd5e1; }
+            .footer { margin-top: 100px; text-align: center; display: flex; justify-content: space-around; }
+            .firma-box { width: 250px; } .linea-firma { border-top: 1px solid #0f172a; margin-bottom: 8px; }
+            .firma-texto { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #475569; }
+            </style></head><body>
+                <div class="header"><h1>Ficha de Funcionario</h1><p>Fecha de emisión: ${new Date().toLocaleDateString('es-CL')}</p></div>
+                <h2>Datos Personales y Contractuales</h2>
+                <div class="grid-info">
+                    <div><span class="label">Nombre Completo</span><div class="value">${f.nombre}</div><span class="label">RUT / DNI</span><div class="value">${f.rut}</div><span class="label">Cargo</span><div class="value">${f.cargo}</div><span class="label">Edad</span><div class="value">${edadText} años</div></div>
+                    <div><span class="label">Periodo Académico</span><div class="value">${f.periodo}</div><span class="label">Horas de Contrato</span><div class="value">${f.horasContratadas} hrs semanales</div><span class="label">Derecho a Lactancia</span><div class="value">${f.lactancia === 1 ? 'Sí' : 'No'}</div></div>
+                </div>
+                <h2>Distribución de Horario Semanal</h2>
+                <table><thead><tr><th>Día de la semana</th><th style="text-align: center;">Hora Entrada</th><th style="text-align: center;">Hora Salida</th><th style="text-align: right;">Horas Diarias</th></tr></thead>
+                <tbody>${filasHorario}</tbody>
+                <tfoot><tr><td colspan="3" style="text-align: right; text-transform: uppercase; font-size: 12px;">Total Horas Registradas:</td><td style="text-align: right; font-size: 16px;">${totalHoras.toFixed(1)} hrs</td></tr></tfoot></table>
+                <div class="footer">
+                    <div class="firma-box"><div class="linea-firma"></div><div class="firma-texto">Firma del Funcionario</div><div style="font-size: 10px; margin-top: 5px; color: #94a3b8;">${f.nombre}</div></div>
+                    <div class="firma-box"><div class="linea-firma"></div><div class="firma-texto">Firma Empleador / Director</div><div style="font-size: 10px; margin-top: 5px; color: #94a3b8;">Sello o Timbre</div></div>
+                </div>
+            </body></html>
+        `);
+        ventanaPrint.document.close();
+        setTimeout(() => { ventanaPrint.print(); }, 250);
+    }
+
+    hiddenInputFuncionario.addEventListener("change", (e) => {
+        const fId = e.target.value; const divSaldo = document.getElementById("saldoDinamico"); const divHistorial = document.getElementById("historialFechasPermiso"); const listaHistorial = document.getElementById("listaFechasPermiso");
+        if(!fId) { divSaldo.innerHTML = "<p class='text-sm mt-4'>Seleccione un funcionario.</p>"; divHistorial.classList.add("hidden"); return; }
+        
+        const anioActual = new Date().getFullYear();
+        const permisosAnio = permisos.filter(p => p.funcionarioId === fId && p.fechaPermiso && p.fechaPermiso.startsWith(anioActual.toString()));
+        const usados = permisosAnio.reduce((acc, p) => acc + (Number(p.tipo) || 0), 0);
+        divSaldo.innerHTML = `<p class="text-5xl font-black mb-1 text-blue-400">${6 - usados}</p><p class="text-xs text-slate-400">Días restantes para el ${anioActual}</p>`;
+
+        if (permisosAnio.length > 0) {
+            permisosAnio.sort((a, b) => a.fechaPermiso < b.fechaPermiso ? 1 : -1);
+            listaHistorial.innerHTML = permisosAnio.map(p => {
+                const partes = p.fechaPermiso.split("-"); const fechaVisual = partes.length === 3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : p.fechaPermiso;
+                const tipoTexto = p.tipo == 1 ? 'Día Completo' : `Medio Día (${p.jornada || 'AM/PM'})`;
+                const obs = p.observacion ? p.observacion : 'Sin motivo especificado';
+                return `<li class="border-b border-slate-700/50 pb-3 last:border-0 last:pb-0"><div class="flex justify-between items-center mb-1"><span class="font-mono text-blue-200">${fechaVisual}</span><span class="text-[10px] font-bold bg-slate-800 px-2 py-1 rounded text-slate-300 uppercase">${tipoTexto}</span></div><p class="text-[11px] text-slate-400 italic mt-1 line-clamp-2" title="${obs}">📝 ${obs}</p></li>`;
+            }).join("");
+            divHistorial.classList.remove("hidden");
+        } else {
+            listaHistorial.innerHTML = `<li class="text-slate-500 italic text-center py-2 text-xs">Aún no ha utilizado permisos este año.</li>`; divHistorial.classList.remove("hidden");
+        }
+    });
+
+    document.getElementById("formFuncionario").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      // Lanzamos el modal de carga mientras procesa
+      abrirModal({ tipo: 'carga', titulo: 'Registrando funcionario...' });
+
+      try {
+          const res = await fetch("/api/funcionarios", {
+            method: "POST", headers: headersAuthJSON,
+            body: JSON.stringify({
+              rut: document.getElementById("rutFuncionario").value, 
+              nombre: document.getElementById("nombreFuncionario").value, 
+              cargo: document.getElementById("cargoFuncionario").value, 
+              fechaNacimiento: document.getElementById("nacimientoFuncionario").value,
+              horasContratadas: parseFloat(document.getElementById("horasFuncionario").value), 
+              lactancia: parseInt(document.getElementById("lactanciaFuncionario").value),
+              periodo: document.getElementById("periodoFuncionario").value,
+              estadoCivil: document.getElementById("estadoCivilFuncionario").value,
+              direccion: document.getElementById("direccionFuncionario").value,
+              comuna: document.getElementById("comunaFuncionario").value,
+              telefono: document.getElementById("telefonoFuncionario").value,
+              correo: document.getElementById("correoFuncionario").value,
+              emergenciaNombre: document.getElementById("emNombreFuncionario").value,
+              emergenciaParentesco: document.getElementById("emParentescoFuncionario").value,
+              emergenciaTelefono: document.getElementById("emTelefonoFuncionario").value
+            })
+          });
+          
+          checkAuthError(res);
+          
+          // ¡ESTA ES LA LÍNEA QUE FALTABA! Leer la respuesta del servidor
+          const data = await res.json();
+
+          if (data.error) {
+              abrirModal({icono:'❌', titulo:'Error de Registro', mensaje: data.error, color:'bg-rose-500 hover:bg-rose-600'});
+          } else {
+              e.target.reset(); 
+              cargarDatos(); 
+              abrirModal({icono:'✅', titulo:'¡Registrado!', mensaje:'El funcionario se guardó correctamente.', color:'bg-emerald-500 hover:bg-emerald-600'});
+          }
+      } catch(error) {
+          if(error.message !== "No autorizado") {
+              abrirModal({icono:'🔌', titulo:'Fallo de Conexión', mensaje:'No se pudo conectar con el servidor.', color:'bg-slate-800'});
+          }
+      }
+    });
+
+    document.getElementById("formExcel").addEventListener("submit", async (e) => {
+      e.preventDefault(); const fileInput = document.getElementById("archivoExcel"); const btn = document.getElementById("btnSubirExcel");
+      if (fileInput.files.length === 0) return;
+      const formData = new FormData(); formData.append("archivoExcel", fileInput.files[0]);
+      btn.innerText = "Procesando..."; btn.disabled = true;
+      try {
+        const res = await fetch("/api/funcionarios/importar", { 
+            method: "POST", 
+            body: formData 
+        }); 
+        checkAuthError(res);
+        const data = await res.json();
+        if (data.error) abrirModal({icono:'❌', titulo:'Error', mensaje: data.error, color:'bg-rose-500'}); 
+        else { 
+            abrirModal({icono:'✅', titulo:'Importación Completa', mensaje: data.mensaje, color:'bg-emerald-500'}); 
+            e.target.reset(); cargarDatos(); 
+        }
+      } catch (error) { 
+          if(error.message !== "No autorizado") abrirModal({icono:'❌', titulo:'Error', mensaje:'Error al subir el archivo.', color:'bg-rose-500'}); 
+      } finally { btn.innerText = "Subir y Procesar Excel"; btn.disabled = false; }
+    });
+
+    
+    // --- LÓGICA ENVÍO DE PERMISOS (CON OVERRIDE Y ANTI-DOBLE CLIC) ---
+    const btnSubmitPermiso = document.querySelector("#formPermiso button[type='submit']");
+
+    document.getElementById("formPermiso").addEventListener("submit", (e) => {
+        e.preventDefault();
+        
+        if (!hiddenInputFuncionario.value) { 
+            // Reemplazamos el alert feo por el modal elegante
+            abrirModal({ 
+                icono: '⚠️', 
+                titulo: 'Atención', 
+                mensaje: 'Por favor, selecciona un funcionario de la lista desplegable antes de continuar.', 
+                color: 'bg-amber-500 hover:bg-amber-600' 
+            });
+            return; 
+        }
+        
+        btnSubmitPermiso.disabled = true;
+        btnSubmitPermiso.innerHTML = "⏳ Procesando...";
+        enviarSolicitudPermiso(false);
+    });
+
+    async function enviarSolicitudPermiso(esConfirmado) {
+        try {
+            const bodyData = {
+                id: generarID(), 
+                funcionarioId: hiddenInputFuncionario.value, 
+                fechaPermiso: document.getElementById("fechaPermiso").value,
+                fechaSolicitud: document.getElementById("fechaSolicitud").value, 
+                tipo: parseFloat(document.getElementById("tipoPermiso").value),
+                jornada: document.getElementById("jornadaPermiso").value, 
+                observacion: document.getElementById("observacionPermiso").value,
+                confirmado: esConfirmado
+            };
+
+            const res = await fetch("/api/permisos", {
+                method: "POST", headers: headersAuthJSON, body: JSON.stringify(bodyData)
+            });
+            
+            checkAuthError(res);
+            const data = await res.json();
+            
+            if (data.error) {
+                abrirModal({ icono: '❌', titulo: 'Error', mensaje: data.error, color: 'bg-rose-500 hover:bg-rose-600', onConfirm: reactivarBotonPermiso });
+            } else if (data.warning) {
+                // AQUÍ REEMPLAZAMOS EL "CONFIRM()" NATIVO
+                abrirModal({
+                    tipo: 'pregunta',
+                    icono: '⚠️',
+                    titulo: 'Tope Diario Alcanzado',
+                    mensaje: data.mensaje,
+                    textoConfirmar: 'Sí, registrar igual',
+                    color: 'bg-amber-500 hover:bg-amber-600',
+                    onConfirm: async () => {
+                        abrirModal({ tipo: 'carga', titulo: 'Procesando excepción...' });
+                        await enviarSolicitudPermiso(true);
+                    },
+                    onCancel: reactivarBotonPermiso
+                });
+            } else { 
+                document.getElementById("formPermiso").reset(); 
+                inputBuscadorPermiso.value = ""; 
+                hiddenInputFuncionario.value = ""; 
+                hiddenInputFuncionario.dispatchEvent(new Event('change'));
+                cargarDatos(); 
+                reactivarBotonPermiso();
+                abrirModal({ icono: '✅', titulo: 'Éxito', mensaje: 'Permiso registrado correctamente.', color: 'bg-emerald-500 hover:bg-emerald-600' });
+            }
+        } catch(e) {
+            reactivarBotonPermiso();
+            if(e.message !== "No autorizado") abrirModal({ icono: '🔌', titulo: 'Fallo de Red', mensaje: 'Error al conectar con el servidor.', color: 'bg-slate-800' });
+        }
+    }
+
+    // Función auxiliar para no repetir código
+    function reactivarBotonPermiso() {
+        btnSubmitPermiso.disabled = false;
+        btnSubmitPermiso.innerHTML = "Confirmar Registro";
+    }
+
+    function renderCalendario() {
+      const cont = document.getElementById("plannerContenedor"); 
+      const tit = document.getElementById("tituloCalendario"); 
+      cont.innerHTML = "";
+      
+      tit.innerText = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(fechaActual);
+      const mes = fechaActual.getMonth(); 
+      const anio = fechaActual.getFullYear();
+      
+      const primerDiaIdx = new Date(anio, mes, 1).getDay(); 
+      const totalDias = new Date(anio, mes + 1, 0).getDate(); 
+      const offset = primerDiaIdx === 0 ? 6 : primerDiaIdx - 1;
+      
+      ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].forEach(d => { 
+          cont.innerHTML += `<div class="bg-slate-100 p-2 text-center text-[10px] font-black uppercase text-slate-500">${d}</div>`; 
+      });
+      
+      for (let i = 0; i < offset; i++) {
+          cont.innerHTML += `<div class="bg-slate-50 calendar-day"></div>`;
+      }
+      
+      for (let d = 1; d <= totalDias; d++) {
+        const fStr = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const mesDiaStr = `${String(mes + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        
+        const pDia = permisos.filter(p => p.fechaPermiso === fStr); 
+        const cumpleaneros = funcionarios.filter(f => f.fechaNacimiento && f.fechaNacimiento.endsWith(mesDiaStr));
+        
+        const totalAusencias = pDia.length + cumpleaneros.length;
+        const lleno = totalAusencias >= 3;
+        
+        let cumplesHtml = cumpleaneros.map(f => `
+            <div class="text-[10px] font-bold text-slate-600 flex items-center gap-1.5 truncate cursor-default mb-1" title="Cumpleaños de ${f.nombre}">
+                <span class="text-amber-500 text-xs">👑</span> ${f.nombre}
+            </div>
+        `).join("");
+
+        let permisosHtml = pDia.map(p => { 
+            const f = funcionarios.find(x => x.id === p.funcionarioId); 
+            return `<div class="text-[10px] font-medium leading-tight bg-slate-100 text-slate-700 p-1.5 rounded border-l-2 border-slate-400 truncate cursor-help" title="${f ? f.nombre : 'Eliminado'}">${f ? f.nombre : 'Eliminado'}</div>`; 
+        }).join("");
+
+        cont.innerHTML += `
+        <div class="bg-white p-2 calendar-day border-r border-b ${lleno ? 'bg-rose-50' : ''} transition flex flex-col">
+            <div class="flex justify-between items-center mb-1.5">
+                <span class="text-sm font-black ${lleno ? 'text-rose-600' : 'text-slate-400'}">${d}</span>
+                ${lleno ? '<span class="text-[8px] font-bold bg-rose-600 text-white px-1.5 py-0.5 rounded-md">LLENO</span>' : ''}
+            </div>
+            <div class="space-y-1 flex-1">
+                ${cumplesHtml}
+                ${permisosHtml}
+            </div>
+        </div>`;
+      }
+    }
+
+    function cambiarMes(dir) { fechaActual.setMonth(fechaActual.getMonth() + dir); renderCalendario(); }
+    
+    function eliminarFuncionario(id) { 
+        if(!puedeEditar) return;
+        abrirModal({
+            tipo: 'pregunta', icono: '🗑️', titulo: 'Eliminar Funcionario', 
+            mensaje: '¿Estás seguro de que deseas eliminar este funcionario? Esta acción no se puede deshacer.',
+            textoConfirmar: 'Sí, eliminar', color: 'bg-rose-600 hover:bg-rose-700',
+            onConfirm: async () => { 
+                try {
+                    const res = await fetch(`/api/funcionarios/${id}`, {method:"DELETE"}); 
+                    checkAuthError(res);
+                    const data = await res.json(); 
+                    if(data.error) abrirModal({icono:'❌', titulo:'Error', mensaje: data.error, color:'bg-rose-500'}); 
+                    else {
+                        abrirModal({icono:'✅', titulo:'Eliminado', mensaje: 'Funcionario eliminado.', color:'bg-emerald-500'});
+                        cargarDatos(); 
+                    }
+                } catch(e) {}
+            }
+        });
+    }
+    
+    function eliminarPermiso(id) { 
+        if(!puedeEditar) return;
+        abrirModal({
+            tipo: 'pregunta', icono: '🗑️', titulo: 'Borrar Permiso', 
+            mensaje: '¿Estás seguro de borrar este permiso del historial?',
+            textoConfirmar: 'Sí, borrar', color: 'bg-rose-600 hover:bg-rose-700',
+            onConfirm: async () => { 
+                try {
+                    const res = await fetch(`/api/permisos/${id}`, {method:"DELETE"}); 
+                    checkAuthError(res);
+                    abrirModal({icono:'✅', titulo:'Eliminado', mensaje: 'Permiso borrado del historial.', color:'bg-emerald-500'});
+                    cargarDatos(); 
+                } catch(e) {}
+            }
+        });
+    }
+
+    // --- LÓGICA MODAL EDICIÓN ---
+    function abrirModalEdicion() {
+        if (!funcionarioActivoFicha || !puedeEditar) return;
+        const f = funcionarios.find(x => x.id === funcionarioActivoFicha);
+        if (!f) return;
+
+        document.getElementById("editRut").value = f.rut;
+        document.getElementById("editNombre").value = f.nombre;
+        document.getElementById("editCargo").value = f.cargo;
+        document.getElementById("editNacimiento").value = f.fechaNacimiento;
+        document.getElementById("editHoras").value = f.horasContratadas;
+        document.getElementById("editLactancia").value = f.lactancia;
+        document.getElementById("editPeriodo").value = f.periodo;
+        document.getElementById("editEstadoCivil").value = f.estadoCivil || "";
+        document.getElementById("editDireccion").value = f.direccion || "";
+        document.getElementById("editComuna").value = f.comuna || "";
+        document.getElementById("editTelefono").value = f.telefono || "";
+        document.getElementById("editCorreo").value = f.correo || "";
+        document.getElementById("editEmNombre").value = f.emergenciaNombre || "";
+        document.getElementById("editEmParentesco").value = f.emergenciaParentesco || "";
+        document.getElementById("editEmTelefono").value = f.emergenciaTelefono || "";
+
+        const modal = document.getElementById("modalEdicion");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+    }
+
+    function cerrarModalEdicion() {
+        const modal = document.getElementById("modalEdicion");
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+    }
+
+    document.getElementById("formEdicionFuncionario").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const rut = document.getElementById("editRut").value;
+        const dataObj = {
+            nombre: document.getElementById("editNombre").value,
+            cargo: document.getElementById("editCargo").value,
+            fechaNacimiento: document.getElementById("editNacimiento").value,
+            horasContratadas: parseFloat(document.getElementById("editHoras").value),
+            lactancia: parseInt(document.getElementById("editLactancia").value),
+            periodo: document.getElementById("editPeriodo").value,
+            estadoCivil: document.getElementById("editEstadoCivil").value,
+            direccion: document.getElementById("editDireccion").value,
+            comuna: document.getElementById("editComuna").value,
+            telefono: document.getElementById("editTelefono").value,
+            correo: document.getElementById("editCorreo").value,
+            emergenciaNombre: document.getElementById("editEmNombre").value,
+            emergenciaParentesco: document.getElementById("editEmParentesco").value,
+            emergenciaTelefono: document.getElementById("editEmTelefono").value
+        };
+
+        try {
+            const res = await fetch(`/api/funcionarios/${rut}`, {
+                method: "PUT", headers: headersAuthJSON, body: JSON.stringify(dataObj)
+            });
+            checkAuthError(res);
+            const result = await res.json();
+            // Cambia la validación de result:
+            if (result.error) {
+                abrirModal({icono:'❌', titulo:'Error al actualizar', mensaje: result.error, color:'bg-rose-500'});
+            } else {
+                cerrarModalEdicion();
+                await cargarDatos(); 
+                document.getElementById("selectFicha").dispatchEvent(new Event("change"));
+                abrirModal({icono:'✅', titulo:'Actualizado', mensaje:'Datos actualizados correctamente.', color:'bg-emerald-500'});
+            }
+        } catch (error) {
+            if(error.message !== "No autorizado") abrirModal({icono:'🔌', titulo:'Error', mensaje:'Error de conexión al intentar guardar.', color:'bg-slate-800'});
+        }
+    });
+
+    // --- LÓGICA DE GESTIÓN DE USUARIOS ---
+    let listaUsuariosDB = [];
+
+    async function cargarUsuarios() {
+        try {
+            // Se actualiza la ruta a /api/auth/usuarios
+            const res = await fetch("/api/auth/usuarios", { headers: headersAuthJSON });
+            checkAuthError(res);
+            if (!res.ok) return; 
+            listaUsuariosDB = await res.json();
+            renderTablaUsuarios();
+        } catch (e) {
+            console.error("Error al cargar usuarios:", e);
+        }
+    }
+
+    function renderTablaUsuarios() {
+        const tbody = document.getElementById("tablaUsuariosLista");
+        tbody.innerHTML = listaUsuariosDB.map(u => {
+            let badgeClase = 'bg-slate-100 text-slate-700';
+            if(u.rol === 'admin') badgeClase = 'bg-rose-100 text-rose-700';
+            if(u.rol === 'editor') badgeClase = 'bg-amber-100 text-amber-700';
+            if(u.rol === 'visor') badgeClase = 'bg-blue-100 text-blue-700';
+
+            return `
+                <tr class="border-b last:border-0 hover:bg-slate-50 transition">
+                    <td class="p-4 font-bold text-slate-800">${u.usuario}</td>
+                    <td class="p-4"><span class="text-xs font-bold px-2 py-1 rounded uppercase ${badgeClase}">${u.rol}</span></td>
+                    <td class="p-4 text-right">
+                        <button onclick="eliminarUsuarioBD(${u.id})" class="text-rose-600 font-bold hover:underline text-sm bg-rose-50 px-3 py-1.5 rounded-lg">Revocar Acceso</button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    document.getElementById("formUsuario").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const usuario = document.getElementById("nuevoUsuarioUser").value;
+        const password = document.getElementById("nuevoUsuarioPass").value;
+        const rol = document.getElementById("nuevoUsuarioRol").value;
+
+        if (password.length < 6) {
+            return abrirModal({icono:'⚠️', titulo:'Contraseña débil', mensaje:'La contraseña debe tener al menos 6 caracteres.', color:'bg-amber-500'});
+        }
+
+        abrirModal({ tipo: 'carga', titulo: 'Creando credencial...' });
+
+        try {
+            // Se actualiza la ruta a /api/auth/usuarios
+            const res = await fetch("/api/auth/usuarios", {
+                method: "POST", 
+                headers: headersAuthJSON,
+                body: JSON.stringify({ usuario, password, rol })
+            });
+            checkAuthError(res);
+            const data = await res.json();
+            
+            if (data.error) {
+                abrirModal({icono:'❌', titulo:'Error', mensaje: data.error, color:'bg-rose-500'});
+            } else { 
+                e.target.reset(); 
+                abrirModal({icono:'✅', titulo:'Usuario Creado', mensaje:'Credencial registrada correctamente.', color:'bg-emerald-500'}); 
+                cargarUsuarios(); 
+            }
+        } catch (e) {
+            if(e.message !== "No autorizado") abrirModal({icono:'🔌', titulo:'Error', mensaje:'Error de conexión.', color:'bg-slate-800'});
+        }
+    });
+
+    function eliminarUsuarioBD(id) {
+        abrirModal({
+            tipo: 'pregunta', icono: '🚫', titulo: 'Revocar Acceso', 
+            mensaje: '¿Estás seguro de que deseas revocar el acceso a este usuario del sistema?',
+            textoConfirmar: 'Sí, revocar', color: 'bg-rose-600 hover:bg-rose-700',
+            onConfirm: async () => {
+                try {
+                    // Se actualiza la ruta a /api/auth/usuarios/:id
+                    const res = await fetch(`/api/auth/usuarios/${id}`, { 
+                        method: "DELETE",
+                        headers: headersAuthJSON 
+                    });
+                    checkAuthError(res);
+                    const data = await res.json();
+                    if (data.error) {
+                        abrirModal({icono:'❌', titulo:'Error', mensaje: data.error, color:'bg-rose-500'});
+                    } else {
+                        abrirModal({icono:'✅', titulo:'Acceso Revocado', mensaje:'Usuario eliminado con éxito.', color:'bg-emerald-500'});
+                        cargarUsuarios();
+                    }
+                } catch(e) {}
+            }
+        });
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>

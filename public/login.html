@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso Administrativo - Colegio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+  <div class="w-full max-w-sm bg-white rounded-3xl shadow-xl p-8 border border-slate-100">
+    <div class="text-center mb-8">
+      <div class="bg-slate-900 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+        🔐
+      </div>
+      <h1 class="text-2xl font-black text-slate-900">Acceso Seguro</h1>
+      <p class="text-slate-500 text-sm mt-2">Panel de Administración Escolar</p>
+    </div>
+
+    <form id="formLogin" class="space-y-5">
+      <div>
+        <label class="text-sm font-bold text-slate-600 mb-1 block">Usuario</label>
+        <input type="text" id="usuario" class="w-full border-2 border-slate-200 p-3 rounded-xl focus:ring-4 ring-blue-500/20 focus:border-blue-500 outline-none transition font-medium" required autocomplete="username" />
+      </div>
+
+      <div>
+        <label class="text-sm font-bold text-slate-600 mb-1 block">Contraseña</label>
+        <input type="password" id="password" class="w-full border-2 border-slate-200 p-3 rounded-xl focus:ring-4 ring-blue-500/20 focus:border-blue-500 outline-none transition font-medium" required autocomplete="current-password" />
+      </div>
+
+      <button type="submit" id="btnLogin" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg mt-2">
+        Ingresar al Sistema
+      </button>
+    </form>
+
+    <div id="alertaError" class="mt-4 p-3 bg-rose-100 text-rose-700 rounded-xl text-sm font-bold text-center hidden"></div>
+  </div>
+
+  <script>
+    document.getElementById("formLogin").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const usuario = document.getElementById("usuario").value;
+      const password = document.getElementById("password").value;
+      const btn = document.getElementById("btnLogin");
+      const alerta = document.getElementById("alertaError");
+      
+      // Estado de carga
+      btn.disabled = true;
+      btn.innerText = "Verificando...";
+      alerta.classList.add("hidden");
+
+      try {
+        // Apuntamos a la nueva ruta modularizada ..
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario, password })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+          // El servidor respondió, pero hubo un error (ej. mala contraseña)
+          alerta.classList.remove("hidden");
+          alerta.innerText = data.error || "Error al iniciar sesión";
+        } else {
+          // Ya no guardamos el token en localStorage por seguridad.
+          // Solo guardamos el rol para la interfaz.
+          localStorage.setItem("rol", data.rol);
+          
+          // Redirigimos al panel de administración
+          window.location.href = "/administracion";
+        }
+      } catch (error) {
+        // Falló la conexión de red (el servidor está caído o inaccesible)
+        alerta.classList.remove("hidden");
+        alerta.innerText = "Error de conexión con el servidor.";
+      } finally {
+        // Siempre reactivamos el botón al terminar
+        btn.disabled = false;
+        btn.innerText = "Ingresar al Sistema";
+      }
+    });
+  </script>
+</body>
+</html>

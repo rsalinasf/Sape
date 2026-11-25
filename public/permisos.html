@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal del Funcionario - Consulta de Permisos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+  <div class="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 border border-slate-100">
+    
+    <div class="text-center mb-8">
+      <div class="bg-blue-100 text-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+        📩
+      </div>
+      <h1 class="text-2xl font-black text-slate-900">Portal del Funcionario</h1>
+      <p class="text-slate-500 text-sm mt-2">Consulta tu saldo de días administrativos y el historial de permisos solicitados.</p>
+    </div>
+
+    <form id="formConsulta" class="space-y-6">
+      <div>
+        <label class="text-sm font-bold text-slate-600 mb-2 block">Ingresa tu RUT</label>
+        <input 
+          type="text" 
+          id="rutConsulta" 
+          placeholder="Ej: 12345678-9" 
+          pattern="^[0-9]{7,8}-[0-9Kk]{1}$"
+          title="El RUT debe ser ingresado sin puntos y con guión. Ej: 12345678-9"
+          class="w-full border-2 border-slate-200 p-4 rounded-xl focus:ring-4 ring-blue-500/20 focus:border-blue-500 outline-none transition font-medium text-center text-lg uppercase" 
+          required 
+        />
+        <p class="text-xs text-slate-400 mt-2 text-center">La información será enviada al correo personal que tienes registrado en RRHH.</p>
+      </div>
+
+      <button 
+        type="submit" 
+        id="btnConsultar"
+        class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg flex justify-center items-center gap-2">
+        <span>Solicitar Informe a mi Correo</span>
+      </button>
+    </form>
+
+    <div id="alertaConsulta" class="mt-6 p-4 rounded-xl text-sm font-bold text-center hidden"></div>
+    
+  </div>
+
+  <script>
+    const inputRut = document.getElementById("rutConsulta");
+
+    // Formateador automático en tiempo real ..
+    inputRut.addEventListener("input", function (e) {
+      // Elimina puntos y cualquier caracter que no sea número, k o guión
+      let valor = this.value.replace(/\./g, '').replace(/[^0-9kK-]/g, '').toUpperCase();
+      this.value = valor;
+    });
+
+    document.getElementById("formConsulta").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const rut = inputRut.value;
+      const btn = document.getElementById("btnConsultar");
+      const alerta = document.getElementById("alertaConsulta");
+      
+      // Reset de clases de la alerta
+      alerta.classList.add("hidden");
+      alerta.className = "mt-6 p-4 rounded-xl text-sm font-bold text-center hidden"; 
+
+      // Validación extra con expresión regular (7 a 8 números, un guión, 1 número o K)
+      const rutRegex = /^[0-9]{7,8}-[0-9K]{1}$/;
+      if (!rutRegex.test(rut)) {
+        alerta.classList.remove("hidden");
+        alerta.classList.add("bg-rose-100", "text-rose-700");
+        alerta.innerText = "❌ Formato inválido. Escríbelo sin puntos y con guión (Ej: 12345678-9).";
+        return;
+      }
+
+      // Estado de carga
+      btn.disabled = true;
+      btn.innerHTML = '<span class="animate-pulse">Enviando correo... ⏳</span>';
+
+      try {
+        const res = await fetch("/api/solicitar-informe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rut })
+        });
+        
+        const data = await res.json();
+        
+        alerta.classList.remove("hidden");
+        
+        if (data.error) {
+          alerta.classList.add("bg-rose-100", "text-rose-700");
+          alerta.innerText = "❌ " + data.error;
+        } else {
+          alerta.classList.add("bg-emerald-100", "text-emerald-700");
+          alerta.innerText = "✅ " + data.mensaje;
+          document.getElementById("formConsulta").reset();
+        }
+      } catch (error) {
+        alerta.classList.remove("hidden");
+        alerta.classList.add("bg-rose-100", "text-rose-700");
+        alerta.innerText = "❌ Error de conexión con el servidor.";
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Solicitar Informe a mi Correo</span>';
+      }
+    });
+  </script>
+</body>
+</html>
